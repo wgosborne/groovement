@@ -21,7 +21,7 @@ export default function Home() {
     setError('');
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.SyntheticEvent<HTMLFormElement>) => {
     e.preventDefault();
     setLoading(true);
     setError('');
@@ -45,8 +45,9 @@ export default function Home() {
       }
 
       setSuccess(true);
+      setLoading(false);
       setFormData({ name: '', email: '', referralSource: '', requestReason: '' });
-    } catch (err) {
+    } catch {
       setError('Failed to submit. Please try again.');
       setLoading(false);
     }
@@ -58,7 +59,7 @@ export default function Home() {
         <div className="glass-panel rounded-lg p-8 w-full max-w-md text-center">
           <h2 className="text-3xl font-bold text-spotify-green mb-4">Thanks!</h2>
           <p className="text-white/80 font-light mb-6 leading-relaxed">
-            You're on the list — I'll email you once you're approved. Keep an eye on your inbox!
+            You're on the list — I'll email you once you're approved at <span className="font-mono text-sm">noreply@groovement.dev</span>. Keep an eye on your inbox!
           </p>
           <button
             onClick={() => setSuccess(false)}
@@ -72,7 +73,16 @@ export default function Home() {
   }
 
   return (
-    <main className="min-h-screen">
+    <>
+      <style jsx>{`
+        #signup {
+          display: none;
+        }
+        #signup:target {
+          display: block;
+        }
+      `}</style>
+      <main className="min-h-screen">
       {/* Hero Section */}
       <section className="min-h-screen flex items-center justify-center p-4 pt-20">
         <div className="max-w-2xl mx-auto text-center">
@@ -317,5 +327,6 @@ export default function Home() {
         </div>
       </section>
     </main>
+    </>
   );
 }
