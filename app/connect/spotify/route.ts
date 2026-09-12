@@ -1,0 +1,58 @@
+import { PrismaClient } from '@prisma/client';
+import { NextRequest, NextResponse } from 'next/server';
+
+const prisma = new PrismaClient();
+
+export async function GET(req: NextRequest) {
+  try {
+    const token = req.nextUrl.searchParams.get('token');
+
+    if (!token) {
+      return NextResponse.json(
+        { error: 'No token provided' },
+        { status: 400 }
+      );
+    }
+
+    const user = await prisma.user.findUnique({
+      where: { connectToken: token },
+    });
+
+    if (!user || user.status !== 'approved') {
+      return NextResponse.json(
+        { error: 'This link is invalid or has expired' },
+        { status: 401 }
+      );
+    }
+
+    const clientId = process.env.SPOTIFY_CLIENT_ID;
+    if (!clientId) {
+      console.error('SPOTIFY_CLIENT_ID is not set');
+      return NextResponse.json(
+        { error: 'Server configuration error' },
+        { status: 500 }
+      );
+    }
+
+    const host = req.headers.get('host') || 'groovement.dev';
+    const protocol = process.env.NODE_ENV === 'production' ? 'https' : 'http';
+    const redirectUri = `${protocol}://${host}/connect/spotify/callback`;
+
+    const spotifyAuthUrl = new URL('https://accounts.spotify.com/authorize');
+    spotifyAuthUrl.searchParams.set('client_id', clientId);
+    spotifyAuthUrl.searchParams.set('response_type', 'code');
+    spotifyAuthUrl.searchParams.set('redirect_uri', redirectUri);
+    spotifyAuthUrl.searchParams.set('scope', 'user-read-recently-played');
+    spotifyAuthUrl.searchParams.set('state', user.id);
+
+    return NextResponse.redirect(spotifyAuthUrl.toString());
+  } catch (error) {
+    console.error('Spotify redirect error:', error);
+    return NextResponse.json(
+      { error: 'Failed to initiate Spotify connection' },
+      { status: 500 }
+    );
+  } finally {
+    await prisma.$disconnect();
+  }
+}

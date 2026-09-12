@@ -1,0 +1,116 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider = "prisma-client-js"
+  // output   = "../app/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum UserStatus {
+  pending
+  approved
+  denied
+}
+
+enum OAuthService {
+  strava
+  spotify
+}
+
+enum WebhookStatus {
+  pending
+  processing
+  completed
+  failed
+}
+
+model User {
+  id     String     @id @default(cuid())
+  name   String
+  email  String     @unique
+  status UserStatus @default(pending)
+
+  referralSource String?
+  requestReason  String?
+
+  stravaAthleteId BigInt? @unique
+  spotifyUserId   String? @unique
+
+  requestedAt DateTime  @default(now())
+  approvedAt  DateTime?
+  createdAt   DateTime  @default(now())
+
+  oauthTokens   OAuthToken[]
+  activities    Activity[]
+  plays         Play[]
+  webhookEvents WebhookEvent[]
+  connectToken  String?        @unique
+}
+
+model OAuthToken {
+  id           String       @id @default(cuid())
+  userId       String
+  user         User         @relation(fields: [userId], references: [id])
+  service      OAuthService
+  refreshToken String // encrypted at rest
+  updatedAt    DateTime     @updatedAt
+
+  @@unique([userId, service])
+}
+
+model Activity {
+  id          String   @id @default(cuid())
+  userId      String
+  user        User     @relation(fields: [userId], references: [id])
+  stravaId    BigInt   @unique
+  name        String
+  startDate   DateTime
+  elapsedTime Int
+  songMatched Boolean  @default(false)
+  createdAt   DateTime @default(now())
+
+  splits Split[]
+}
+
+model Split {
+  id                 String   @id @default(cuid())
+  activityId         String
+  activity           Activity @relation(fields: [activityId], references: [id])
+  splitNumber        Int
+  distance           Decimal
+  averageSpeed       Decimal
+  startOffsetSeconds Int
+  elapsedTime        Int
+}
+
+model Play {
+  id             String   @id @default(cuid())
+  userId         String
+  user           User     @relation(fields: [userId], references: [id])
+  trackName      String
+  artist         String
+  spotifyTrackId String
+  playedAt       DateTime
+}
+
+model WebhookEvent {
+  id            String        @id @default(cuid())
+  stravaEventId String        @unique
+  athleteId     BigInt
+  objectId      BigInt
+  aspectType    String
+  status        WebhookStatus @default(pending)
+  attempts      Int           @default(0)
+  userId        String?
+  user          User?         @relation(fields: [userId], references: [id])
+  createdAt     DateTime      @default(now())
+  processedAt   DateTime?
+}

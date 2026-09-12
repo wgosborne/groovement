@@ -1,26 +1,107 @@
 @import "tailwindcss";
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --background: #0a0a0a;
+  --foreground: #ffffff;
+  --spotify-green: #1db954;
+  --border-color: #2a2a2a;
+  --card-background: #121212;
 }
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
+  --color-spotify-green: var(--spotify-green);
+  --color-border: var(--border-color);
+  --font-sans: var(--font-lato);
   --font-mono: var(--font-geist-mono);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+html {
+  min-height: 100vh;
+}
+
+html::before {
+  content: '';
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-image: url('/background.jpg');
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+  background-attachment: fixed;
+  filter: blur(12px);
+  z-index: -2;
+  pointer-events: none;
+}
+
+html::after {
+  content: '';
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-color: rgba(0, 0, 0, 0.4);
+  z-index: -1;
+  pointer-events: none;
 }
 
 body {
-  background: var(--background);
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: var(--font-lato), -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  font-weight: 400;
+  line-height: 1.6;
+  background: transparent;
+}
+
+/* Font weight utilities */
+.font-light {
+  font-weight: 300;
+}
+
+.font-normal {
+  font-weight: 400;
+}
+
+.font-bold {
+  font-weight: 700;
+}
+
+/* Tailwind color utilities */
+.text-spotify-green {
+  color: var(--spotify-green);
+}
+
+.border-dark {
+  border-color: var(--border-color);
+}
+
+.bg-dark {
+  background-color: #121212;
+}
+
+.bg-darker {
+  background-color: #0a0a0a;
+}
+
+/* Glassmorphism utilities */
+.glass-panel {
+  background: rgba(255, 255, 255, 0.14);
+  backdrop-filter: blur(20px);
+  border: 1px solid rgba(255, 255, 255, 0.09);
+}
+
+.glass-panel p,
+.glass-panel span,
+.glass-panel a,
+.glass-panel div:not(.absolute) {
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.4);
+}
+
+.glass-border {
+  border-color: rgba(255, 255, 255, 0.09);
 }
