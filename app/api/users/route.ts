@@ -1,8 +1,6 @@
-import { PrismaClient } from '@prisma/client';
+import { prisma } from '@/lib/prisma';
 import { sendAdminNotificationEmail } from '@/lib/email';
 import { NextRequest, NextResponse } from 'next/server';
-
-const prisma = new PrismaClient();
 
 export async function POST(req: NextRequest) {
   try {
@@ -62,7 +60,5 @@ export async function POST(req: NextRequest) {
       { error: 'Failed to create signup request' },
       { status: 500 }
     );
-  } finally {
-    await prisma.$disconnect();
   }
 }

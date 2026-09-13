@@ -102,15 +102,17 @@ model Play {
 }
 
 model WebhookEvent {
-  id            String        @id @default(cuid())
-  stravaEventId String        @unique
-  athleteId     BigInt
-  objectId      BigInt
-  aspectType    String
-  status        WebhookStatus @default(pending)
-  attempts      Int           @default(0)
-  userId        String?
-  user          User?         @relation(fields: [userId], references: [id])
-  createdAt     DateTime      @default(now())
-  processedAt   DateTime?
+  id         String        @id @default(cuid())
+  athleteId  BigInt
+  objectId   BigInt
+  aspectType String
+  eventTime  DateTime
+  status     WebhookStatus @default(pending)
+  attempts   Int           @default(0)
+  userId     String?
+  user       User?         @relation(fields: [userId], references: [id])
+  createdAt  DateTime      @default(now())
+  processedAt DateTime?
+
+  @@unique([objectId, aspectType, eventTime])
 }

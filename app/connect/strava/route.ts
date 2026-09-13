@@ -1,7 +1,5 @@
-import { PrismaClient } from '@prisma/client';
+import { prisma } from '@/lib/prisma';
 import { NextRequest, NextResponse } from 'next/server';
-
-const prisma = new PrismaClient();
 
 export async function GET(req: NextRequest) {
   try {
@@ -52,7 +50,5 @@ export async function GET(req: NextRequest) {
       { error: 'Failed to initiate Strava connection' },
       { status: 500 }
     );
-  } finally {
-    await prisma.$disconnect();
   }
 }

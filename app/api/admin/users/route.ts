@@ -1,7 +1,5 @@
-import { PrismaClient } from '@prisma/client';
+import { prisma } from '@/lib/prisma';
 import { NextResponse } from 'next/server';
-
-const prisma = new PrismaClient();
 
 export async function GET() {
   try {
@@ -25,7 +23,5 @@ export async function GET() {
       { error: 'Failed to fetch pending users' },
       { status: 500 }
     );
-  } finally {
-    await prisma.$disconnect();
   }
 }

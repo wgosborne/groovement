@@ -1,9 +1,7 @@
-import { PrismaClient } from '@prisma/client';
+import { prisma } from '@/lib/prisma';
 import { NextRequest, NextResponse } from 'next/server';
 import crypto from 'crypto';
 import { sendApprovalEmail } from '@/lib/email';
-
-const prisma = new PrismaClient();
 
 function generateConnectToken(): string {
   return crypto.randomBytes(32).toString('base64url');
@@ -69,7 +67,5 @@ export async function POST(req: NextRequest) {
       { error: 'Failed to approve user' },
       { status: 500 }
     );
-  } finally {
-    await prisma.$disconnect();
   }
 }
