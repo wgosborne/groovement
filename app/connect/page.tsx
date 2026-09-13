@@ -1,6 +1,5 @@
-import { PrismaClient } from '@prisma/client';
-
-const prisma = new PrismaClient();
+import { prisma } from '@/lib/prisma';
+import type { OAuthToken } from '@prisma/client';
 
 interface ConnectPageProps {
   searchParams: Promise<{ token?: string }>;
@@ -30,13 +29,11 @@ export default async function ConnectPage({ searchParams }: ConnectPageProps) {
       return <ErrorState message="This link is invalid or has expired." />;
     }
 
-    stravaConnected = user.oauthTokens.some((t) => t.service === 'strava');
-    spotifyConnected = user.oauthTokens.some((t) => t.service === 'spotify');
+    stravaConnected = user.oauthTokens.some((t: OAuthToken) => t.service === 'strava');
+    spotifyConnected = user.oauthTokens.some((t: OAuthToken) => t.service === 'spotify');
   } catch (error) {
     console.error('Failed to look up user:', error);
     return <ErrorState message="Something went wrong. Please try again." />;
-  } finally {
-    await prisma.$disconnect();
   }
 
   const bothConnected = stravaConnected && spotifyConnected;

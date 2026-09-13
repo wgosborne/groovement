@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
-import { Prisma } from '@prisma/client';
+import { PrismaClientKnownRequestError } from '@prisma/client/runtime/library';
 
 export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);
@@ -89,7 +89,7 @@ export async function POST(request: NextRequest) {
     } catch (error) {
       // Check if this is a unique constraint violation (duplicate event)
       if (
-        error instanceof Prisma.PrismaClientKnownRequestError &&
+        error instanceof PrismaClientKnownRequestError &&
         error.code === 'P2002'
       ) {
         console.info('Strava webhook event already recorded', {
