@@ -226,3 +226,26 @@ export async function fetchActivityWithTopSplits(
 
   return result;
 }
+
+export async function getActivityDescription(
+  userId: string,
+  stravaActivityId: bigint
+): Promise<string | null> {
+  const oauthToken = await prisma.oAuthToken.findUnique({
+    where: {
+      userId_service: {
+        userId,
+        service: 'strava',
+      },
+    },
+  });
+
+  if (!oauthToken) {
+    throw new Error(`No Strava OAuth token found for user ${userId}`);
+  }
+
+  const accessToken = await refreshAccessToken(userId, oauthToken.refreshToken);
+  const activity = await fetchStravaActivity(accessToken, stravaActivityId);
+
+  return activity.description || null;
+}

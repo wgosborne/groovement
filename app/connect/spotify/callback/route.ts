@@ -1,6 +1,7 @@
 import { prisma } from '@/lib/prisma';
 import { NextRequest, NextResponse } from 'next/server';
 import { encrypt } from '@/lib/encryption';
+import { PrismaClientKnownRequestError } from '@prisma/client/runtime/library';
 
 export async function GET(req: NextRequest) {
   try {
@@ -137,12 +138,30 @@ export async function GET(req: NextRequest) {
       },
     });
 
-    await prisma.user.update({
-      where: { id: user.id },
-      data: {
-        spotifyUserId,
-      },
-    });
+    try {
+      await prisma.user.update({
+        where: { id: user.id },
+        data: {
+          spotifyUserId,
+        },
+      });
+    } catch (error) {
+      if (
+        error instanceof PrismaClientKnownRequestError &&
+        error.code === 'P2002' &&
+        error.meta?.target?.includes('spotifyUserId')
+      ) {
+        console.warn('Duplicate Spotify user ID connection attempt', {
+          userId: user.id,
+          spotifyUserId,
+        });
+        const connectUrl = new URL('/connect', `${protocol}://${host}`);
+        connectUrl.searchParams.set('token', user.connectToken!);
+        connectUrl.searchParams.set('error', 'duplicate_spotify');
+        return NextResponse.redirect(connectUrl.toString());
+      }
+      throw error;
+    }
 
     const connectUrl = new URL('/connect', `${protocol}://${host}`);
     connectUrl.searchParams.set('token', user.connectToken!);

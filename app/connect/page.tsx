@@ -2,12 +2,13 @@ import { prisma } from '@/lib/prisma';
 import type { OAuthToken } from '@prisma/client';
 
 interface ConnectPageProps {
-  searchParams: Promise<{ token?: string }>;
+  searchParams: Promise<{ token?: string; error?: string }>;
 }
 
 export default async function ConnectPage({ searchParams }: ConnectPageProps) {
   const params = await searchParams;
   const token = params.token;
+  const error = params.error;
 
   if (!token) {
     return <ErrorState message="No token provided. This link is invalid." />;
@@ -66,6 +67,24 @@ export default async function ConnectPage({ searchParams }: ConnectPageProps) {
           <h1 className="text-3xl font-bold text-white mb-2">Welcome, {user.name}!</h1>
           <p className="text-white/70 font-light">Connect your accounts to get started</p>
         </div>
+
+        {error === 'duplicate_strava' && (
+          <div className="glass-panel rounded-lg p-6 mb-8 border-l-4 border-red-500 bg-red-500/10">
+            <h2 className="text-lg font-bold text-red-400 mb-2">Strava Account Already Connected</h2>
+            <p className="text-white/80 font-light">
+              This Strava account is already connected to a different Groovement account. If you think this is a mistake, please contact the developer.
+            </p>
+          </div>
+        )}
+
+        {error === 'duplicate_spotify' && (
+          <div className="glass-panel rounded-lg p-6 mb-8 border-l-4 border-red-500 bg-red-500/10">
+            <h2 className="text-lg font-bold text-red-400 mb-2">Spotify Account Already Connected</h2>
+            <p className="text-white/80 font-light">
+              This Spotify account is already connected to a different Groovement account. If you think this is a mistake, please contact the developer.
+            </p>
+          </div>
+        )}
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           {/* Strava Section */}

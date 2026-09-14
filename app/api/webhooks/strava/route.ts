@@ -1,5 +1,6 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { NextRequest, NextResponse, after } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { processWebhookEvent } from '@/lib/process-webhook-event';
 import { PrismaClientKnownRequestError } from '@prisma/client/runtime/library';
 
 export async function GET(request: NextRequest) {
@@ -71,7 +72,7 @@ export async function POST(request: NextRequest) {
     const eventDateTime = new Date(event_time * 1000);
 
     try {
-      await prisma.webhookEvent.create({
+      const newEvent = await prisma.webhookEvent.create({
         data: {
           objectId: BigInt(object_id),
           aspectType: aspect_type,
@@ -86,6 +87,9 @@ export async function POST(request: NextRequest) {
         aspectType: aspect_type,
         athleteId: owner_id,
       });
+
+      // Trigger immediate processing without blocking the response
+      after(() => processWebhookEvent(newEvent.id));
     } catch (error) {
       // Check if this is a unique constraint violation (duplicate event)
       if (

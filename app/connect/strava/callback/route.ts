@@ -1,6 +1,7 @@
 import { prisma } from '@/lib/prisma';
 import { NextRequest, NextResponse } from 'next/server';
 import { encrypt } from '@/lib/encryption';
+import { PrismaClientKnownRequestError } from '@prisma/client/runtime/library';
 
 export async function GET(req: NextRequest) {
   try {
@@ -105,12 +106,30 @@ export async function GET(req: NextRequest) {
       },
     });
 
-    await prisma.user.update({
-      where: { id: user.id },
-      data: {
-        stravaAthleteId: BigInt(athlete.id),
-      },
-    });
+    try {
+      await prisma.user.update({
+        where: { id: user.id },
+        data: {
+          stravaAthleteId: BigInt(athlete.id),
+        },
+      });
+    } catch (error) {
+      if (
+        error instanceof PrismaClientKnownRequestError &&
+        error.code === 'P2002' &&
+        error.meta?.target?.includes('stravaAthleteId')
+      ) {
+        console.warn('Duplicate Strava athlete ID connection attempt', {
+          userId: user.id,
+          stravaAthleteId: athlete.id,
+        });
+        const connectUrl = new URL('/connect', `${protocol}://${host}`);
+        connectUrl.searchParams.set('token', user.connectToken!);
+        connectUrl.searchParams.set('error', 'duplicate_strava');
+        return NextResponse.redirect(connectUrl.toString());
+      }
+      throw error;
+    }
 
     const connectUrl = new URL('/connect', `${protocol}://${host}`);
     connectUrl.searchParams.set('token', user.connectToken!);

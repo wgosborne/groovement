@@ -17,6 +17,7 @@ async function main() {
   const stravaActivityId = BigInt('16246055651');
 
   if (
+    // @ts-expect-error Its okay that the types are different, It's incase I send the example
     userId === 'YOUR_USER_ID_HERE' ||
     stravaActivityId === BigInt('0')
   ) {
