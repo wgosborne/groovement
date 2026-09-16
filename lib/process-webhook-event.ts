@@ -1,5 +1,5 @@
 import { prisma } from '@/lib/prisma';
-import { fetchActivityWithTopSplits } from '@/lib/strava';
+import { matchSongsToActivity } from '@/lib/match-songs';
 
 export async function processWebhookEvent(eventId: string): Promise<void> {
   try {
@@ -42,8 +42,12 @@ export async function processWebhookEvent(eventId: string): Promise<void> {
       data: { userId: user.id },
     });
 
-    // Fetch activity with top splits
-    const result = await fetchActivityWithTopSplits(user.id, event.objectId);
+    // Match songs to activity (includes fetching splits and updating Strava)
+    const matchResult = await matchSongsToActivity(user.id, event.objectId);
+
+    if (!matchResult.success) {
+      throw new Error('Failed to match songs to activity');
+    }
 
     // Mark as completed
     await prisma.webhookEvent.update({
@@ -56,8 +60,8 @@ export async function processWebhookEvent(eventId: string): Promise<void> {
 
     console.info(`WebhookEvent ${eventId} processed successfully`, {
       userId: user.id,
-      activityId: result.activityId,
-      splitCount: result.splits.length,
+      activityId: event.objectId,
+      matchedCount: matchResult.matchedCount,
     });
   } catch (error) {
     // Wrap in try/catch so this never throws uncaught

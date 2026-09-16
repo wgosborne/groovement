@@ -1,9 +1,11 @@
+import { prisma } from '@/lib/prisma';
 import { fetchActivityWithTopSplits, getActivityDescription } from '@/lib/strava';
 import { fetchPlaysForActivity } from '@/lib/spotify';
 
 export interface MatchResult {
   description: string;
   matchedCount: number;
+  success: boolean;
 }
 
 function formatPace(speedMs: number): string {
@@ -33,6 +35,7 @@ export async function matchSongsToActivity(
     return {
       description: '',
       matchedCount: 0,
+      success: false,
     };
   }
 
@@ -134,9 +137,105 @@ export async function matchSongsToActivity(
     updatedDescription = descriptionBlock;
   }
 
-  // 8. Return result
-  return {
-    description: updatedDescription,
-    matchedCount,
-  };
+  // 8. PUT description to Strava and update Activity record
+  try {
+    const oauthToken = await prisma.oAuthToken.findUnique({
+      where: {
+        userId_service: {
+          userId,
+          service: 'strava',
+        },
+      },
+    });
+
+    if (!oauthToken) {
+      throw new Error(`No Strava OAuth token found for user ${userId}`);
+    }
+
+    // Refresh access token
+    const { decrypt } = await import('@/lib/encryption');
+    let refreshToken: string;
+    try {
+      refreshToken = decrypt(oauthToken.refreshToken);
+    } catch (error) {
+      throw new Error(
+        `Failed to decrypt refresh token for user ${userId}: ${error instanceof Error ? error.message : String(error)}`
+      );
+    }
+
+    const clientId = process.env.STRAVA_CLIENT_ID;
+    const clientSecret = process.env.STRAVA_CLIENT_SECRET;
+
+    if (!clientId || !clientSecret) {
+      throw new Error('STRAVA_CLIENT_ID or STRAVA_CLIENT_SECRET is not set');
+    }
+
+    const tokenResponse = await fetch('https://www.strava.com/api/v3/oauth/token', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        client_id: clientId,
+        client_secret: clientSecret,
+        grant_type: 'refresh_token',
+        refresh_token: refreshToken,
+      }),
+    });
+
+    if (!tokenResponse.ok) {
+      const errorData = await tokenResponse.json().catch(() => ({ error: 'Unknown error' }));
+      const errorMsg = typeof errorData === 'object' && errorData !== null && 'error' in errorData
+        ? String((errorData as Record<string, unknown>).error)
+        : 'Unknown error';
+      throw new Error(`Strava token refresh failed: ${errorMsg}`);
+    }
+
+    const tokenData = (await tokenResponse.json()) as { access_token: string };
+
+    if (!tokenData.access_token) {
+      throw new Error('No access token in Strava response');
+    }
+
+    const accessToken = tokenData.access_token;
+
+    // PUT description to Strava
+    const putResponse = await fetch(
+      `https://www.strava.com/api/v3/activities/${stravaActivityId}`,
+      {
+        method: 'PUT',
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ description: updatedDescription }),
+      }
+    );
+
+    if (!putResponse.ok) {
+      const errorData = await putResponse.json().catch(() => ({ error: 'Unknown error' }));
+      const errorMsg = typeof errorData === 'object' && errorData !== null && 'error' in errorData
+        ? String((errorData as Record<string, unknown>).error)
+        : 'Unknown error';
+      throw new Error(
+        `Strava PUT failed: ${putResponse.status} ${errorMsg}`
+      );
+    }
+
+    // Mark Activity as successfully matched
+    await prisma.activity.update({
+      where: { stravaId: stravaActivityId },
+      data: { songMatched: true },
+    });
+
+    console.info(`Successfully updated Strava activity ${stravaActivityId} with matched songs`);
+
+    return {
+      description: updatedDescription,
+      matchedCount,
+      success: true,
+    };
+  } catch (error) {
+    const errorMsg = error instanceof Error ? error.message : String(error);
+    console.error(`Failed to update Strava activity ${stravaActivityId}:`, errorMsg);
+    throw error;
+  }
 }

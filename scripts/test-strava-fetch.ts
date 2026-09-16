@@ -14,7 +14,7 @@ config({ path: '.env.local' });
 async function main() {
   // Fill these in before running
   const userId = 'cmtyr06vo0000tuh83z93fqsp';
-  const stravaActivityId = BigInt('16246055651');
+  const stravaActivityId = BigInt('20157748454');
 
   if (
     // @ts-expect-error Its okay that the types are different, It's incase I send the example
