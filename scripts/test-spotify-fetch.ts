@@ -14,8 +14,8 @@ config({ path: '.env.local' });
 async function main() {
   // Fill these in before running
   const userId = 'cmtyr06vo0000tuh83z93fqsp';
-  const activityStart = new Date('2026-09-14T03:30:00Z');
-  const activityEnd = new Date('2026-09-14T10:30:00Z');
+  const activityStart = new Date('2026-09-08T17:06:31.000Z');
+  const activityEnd = new Date('2026-09-08T17:12:39.000Z');
 
   // @ts-expect-error Its okay that the types are different, It's incase I send the example
   if (userId === 'YOUR_USER_ID_HERE') {

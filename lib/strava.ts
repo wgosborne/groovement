@@ -56,6 +56,7 @@ export interface FetchActivityResult {
   stravaId: bigint;
   name: string;
   startDate: Date;
+  elapsedTime: number;
   splits: FetchedSplit[];
 }
 
@@ -159,15 +160,37 @@ export async function fetchActivityWithTopSplits(
   const activity = await fetchStravaActivity(accessToken, stravaActivityId);
   console.log(`[DEBUG] Activity fetched successfully`);
 
+  // Debug: log raw splits from Strava before any filtering/sorting
+  console.log(`[DEBUG] Raw splits_metric from Strava (${activity.splits_metric?.length || 0} total):`,
+    (activity.splits_metric || []).map((s) => ({
+      split: s.split,
+      distance: s.distance,
+      elapsed_time: s.elapsed_time,
+      average_speed: s.average_speed,
+    }))
+  );
+
   const activityStartDate = new Date(activity.start_date);
+
+  // Calculate total elapsed time from sum of all splits (more reliable than API value)
+  const totalElapsedTime = (activity.splits_metric || [])
+    .reduce((sum, split) => sum + split.elapsed_time, 0);
+
+  console.log(`[DEBUG] Activity duration mismatch check:`, {
+    calculatedFromSplits: `${totalElapsedTime}s (~${Math.floor(totalElapsedTime / 60)}:${String(totalElapsedTime % 60).padStart(2, '0')})`,
+    apiReported: `${activity.elapsed_time}s (~${Math.floor(activity.elapsed_time / 60)}:${String(activity.elapsed_time % 60).padStart(2, '0')})`,
+    using: 'calculatedFromSplits',
+  });
 
   const rankedSplits = (activity.splits_metric || [])
     .filter((split) => split.average_speed <= SPEED_CEILING_MS)
     .sort((a, b) => b.average_speed - a.average_speed)
     .slice(0, TOP_SPLITS_COUNT)
     .map((split, index) => {
-      const cumulativeElapsedSeconds = activity.splits_metric
-        .slice(0, activity.splits_metric.indexOf(split))
+      // Use Strava's original split number (1-indexed) to find all splits before it
+      // split.split is the chronological position: 1, 2, 3, 4, ...
+      const cumulativeElapsedSeconds = (activity.splits_metric || [])
+        .slice(0, split.split - 1)
         .reduce((sum, s) => sum + s.elapsed_time, 0);
 
       return {
@@ -190,7 +213,7 @@ export async function fetchActivityWithTopSplits(
         stravaId: stravaActivityId,
         name: activity.name,
         startDate: activityStartDate,
-        elapsedTime: activity.elapsed_time,
+        elapsedTime: totalElapsedTime,
         songMatched: false,
       },
     });
@@ -214,6 +237,7 @@ export async function fetchActivityWithTopSplits(
     stravaId: stravaActivityId,
     name: activity.name,
     startDate: activityStartDate,
+    elapsedTime: totalElapsedTime,
     splits: rankedSplits.map((split) => ({
       ...split,
       startDate: new Date(activityStartDate.getTime() + split.startOffsetSeconds * 1000),

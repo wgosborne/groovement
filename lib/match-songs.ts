@@ -38,8 +38,7 @@ export async function matchSongsToActivity(
 
   // 3. Calculate activity end date and fetch plays
   const activityEndDate = new Date(
-    activity.startDate.getTime() + (activity.splits[activity.splits.length - 1].startDate.getTime() - activity.startDate.getTime()) +
-    (activity.splits[activity.splits.length - 1].elapsedTime * 1000)
+    activity.startDate.getTime() + (activity.elapsedTime * 1000)
   );
 
   const plays = await fetchPlaysForActivity(userId, activity.startDate, activityEndDate);
@@ -59,6 +58,13 @@ export async function matchSongsToActivity(
   for (const split of activity.splits) {
     // Convert m/s to pace string
     const paceString = formatPace(split.averageSpeed);
+
+    // Debug: log split time window
+    console.debug(`Split ${split.splitNumber} time window:`, {
+      startDate: split.startDate.toISOString(),
+      endDate: split.endDate.toISOString(),
+      durationMs: split.endDate.getTime() - split.startDate.getTime(),
+    });
 
     // Find plays within this split's window (use first chronologically if multiple)
     const matchedPlay = plays.find(
