@@ -29,13 +29,19 @@ export async function matchSongsToActivity(
     splitsCount: activity.splits.length,
   });
 
-  // 2. If zero splits, return early
+  // 2. If zero splits, mark activity as matched and return early (not a failure)
   if (!activity.splits || activity.splits.length === 0) {
-    console.info('No splits found for activity');
+    console.info('No splits found for activity — marking as matched with nothing to do');
+
+    await prisma.activity.update({
+      where: { stravaId: stravaActivityId },
+      data: { songMatched: true },
+    });
+
     return {
       description: '',
       matchedCount: 0,
-      success: false,
+      success: true,
     };
   }
 

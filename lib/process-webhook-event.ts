@@ -58,11 +58,18 @@ export async function processWebhookEvent(eventId: string): Promise<void> {
       },
     });
 
-    console.info(`WebhookEvent ${eventId} processed successfully`, {
-      userId: user.id,
-      activityId: event.objectId,
-      matchedCount: matchResult.matchedCount,
-    });
+    if (matchResult.matchedCount === 0) {
+      console.info(`WebhookEvent ${eventId} completed with no splits to match`, {
+        userId: user.id,
+        activityId: event.objectId,
+      });
+    } else {
+      console.info(`WebhookEvent ${eventId} processed successfully`, {
+        userId: user.id,
+        activityId: event.objectId,
+        matchedCount: matchResult.matchedCount,
+      });
+    }
   } catch (error) {
     // Wrap in try/catch so this never throws uncaught
     const event = await prisma.webhookEvent.findUnique({
