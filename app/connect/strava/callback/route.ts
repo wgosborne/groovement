@@ -117,7 +117,8 @@ export async function GET(req: NextRequest) {
       if (
         error instanceof PrismaClientKnownRequestError &&
         error.code === 'P2002' &&
-        error.meta?.target?.includes('stravaAthleteId')
+        Array.isArray((error.meta as Record<string, unknown>)?.target) &&
+        ((error.meta as Record<string, unknown>).target as string[]).includes('stravaAthleteId')
       ) {
         console.warn('Duplicate Strava athlete ID connection attempt', {
           userId: user.id,

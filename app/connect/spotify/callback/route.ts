@@ -149,7 +149,8 @@ export async function GET(req: NextRequest) {
       if (
         error instanceof PrismaClientKnownRequestError &&
         error.code === 'P2002' &&
-        error.meta?.target?.includes('spotifyUserId')
+        Array.isArray((error.meta as Record<string, unknown>)?.target) &&
+        ((error.meta as Record<string, unknown>).target as string[]).includes('spotifyUserId')
       ) {
         console.warn('Duplicate Spotify user ID connection attempt', {
           userId: user.id,

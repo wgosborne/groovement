@@ -38,6 +38,7 @@ interface StravaActivityDetail {
   timezone: string;
   utc_offset: number;
   splits_metric: StravaSplit[];
+  description?: string;
   [key: string]: unknown;
 }
 
