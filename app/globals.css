@@ -33,9 +33,15 @@ html::before {
   background-position: center;
   background-repeat: no-repeat;
   background-attachment: fixed;
-  filter: blur(12px);
+  filter: blur(1px);
   z-index: -2;
   pointer-events: none;
+}
+
+@media (min-width: 768px) {
+  html::before {
+    filter: blur(12px);
+  }
 }
 
 html::after {

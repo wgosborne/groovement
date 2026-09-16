@@ -103,8 +103,8 @@ export default function AdminPage() {
   if (!authenticated) {
     return (
       <div className="min-h-screen flex items-center justify-center p-4">
-        <div className="glass-panel rounded-lg p-8 w-full max-w-md">
-          <h1 className="text-3xl font-bold text-spotify-green mb-6">Groovement Admin</h1>
+        <div className="glass-panel rounded-lg p-6 sm:p-8 w-full max-w-md">
+          <h1 className="text-2xl sm:text-3xl font-bold text-spotify-green mb-6">Groovement Admin</h1>
 
           <form onSubmit={handleLogin}>
             <input
@@ -112,12 +112,12 @@ export default function AdminPage() {
               placeholder="Admin password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              className="w-full px-4 py-2 bg-white/10 border border-white/20 rounded-md mb-4 text-white placeholder-white/50 focus:outline-none focus:border-spotify-green focus:ring-1 focus:ring-spotify-green"
+              className="w-full px-3 sm:px-4 py-3 sm:py-2 bg-white/10 border border-white/20 rounded-md mb-4 text-white placeholder-white/50 focus:outline-none focus:border-spotify-green focus:ring-1 focus:ring-spotify-green"
             />
             <button
               type="submit"
               disabled={loading}
-              className="w-full bg-spotify-green text-black font-bold py-2 rounded-md hover:bg-opacity-90 disabled:opacity-50 transition"
+              className="w-full bg-spotify-green text-black font-bold py-3 sm:py-2 rounded-md hover:bg-opacity-90 disabled:opacity-50 transition"
             >
               {loading ? 'Authenticating...' : 'Login'}
             </button>
@@ -130,10 +130,10 @@ export default function AdminPage() {
   }
 
   return (
-    <div className="min-h-screen p-8">
+    <div className="min-h-screen p-4 sm:p-8">
       <div className="max-w-4xl mx-auto">
-        <h1 className="text-4xl font-bold text-spotify-green mb-2">Pending Approvals</h1>
-        <p className="text-white/70 font-light mb-8">Review and approve new signup requests</p>
+        <h1 className="text-3xl sm:text-4xl font-bold text-spotify-green mb-2">Pending Approvals</h1>
+        <p className="text-sm sm:text-base text-white/70 font-light mb-6 sm:mb-8">Review and approve new signup requests</p>
 
         {error && (
           <div className="glass-panel border-red-500/30 rounded-lg px-4 py-3 mb-6 bg-red-500/10">
@@ -148,16 +148,16 @@ export default function AdminPage() {
             {users.map((user) => (
               <div
                 key={user.id}
-                className="glass-panel rounded-lg p-6 border-l-4 border-spotify-green"
+                className="glass-panel rounded-lg p-4 sm:p-6 border-l-4 border-spotify-green"
               >
-                <div className="grid grid-cols-2 gap-4 mb-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4 mb-4">
                   <div>
                     <p className="text-xs font-light text-white/60 uppercase tracking-wider mb-1">Name</p>
-                    <p className="text-lg font-bold text-white">{user.name}</p>
+                    <p className="text-base sm:text-lg font-bold text-white">{user.name}</p>
                   </div>
                   <div>
                     <p className="text-xs font-light text-white/60 uppercase tracking-wider mb-1">Email</p>
-                    <p className="text-lg text-white">{user.email}</p>
+                    <p className="text-base sm:text-lg text-white break-words">{user.email}</p>
                   </div>
                 </div>
 
@@ -179,18 +179,18 @@ export default function AdminPage() {
                   Requested: {new Date(user.requestedAt).toLocaleString()}
                 </p>
 
-                <div className="flex gap-3">
+                <div className="flex flex-col sm:flex-row gap-2 sm:gap-3">
                   <button
                     onClick={() => handleApprove(user.id)}
                     disabled={loading}
-                    className="flex-1 bg-spotify-green text-black font-bold py-2 rounded-md hover:bg-opacity-90 disabled:opacity-50 transition"
+                    className="flex-1 bg-spotify-green text-black font-bold py-3 sm:py-2 rounded-md hover:bg-opacity-90 disabled:opacity-50 transition"
                   >
                     Approve
                   </button>
                   <button
                     onClick={() => handleDeny(user.id)}
                     disabled={loading}
-                    className="flex-1 border border-white/30 text-white font-bold py-2 rounded-md hover:bg-white/10 disabled:opacity-50 transition"
+                    className="flex-1 border border-white/30 text-white font-bold py-3 sm:py-2 rounded-md hover:bg-white/10 disabled:opacity-50 transition"
                   >
                     Deny
                   </button>

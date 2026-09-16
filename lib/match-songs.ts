@@ -121,6 +121,9 @@ export async function matchSongsToActivity(
     descriptionBlock += `\nSOTD: ${sotdList}\nAOTD: ${aotdList}`;
   }
 
+  // Add footer attribution
+  descriptionBlock += '\n\nCalculated with https://groovement.dev';
+
   console.log('Description block built:', {
     matchedCount,
     blockLength: descriptionBlock.length,

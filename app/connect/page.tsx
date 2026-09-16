@@ -42,8 +42,8 @@ export default async function ConnectPage({ searchParams }: ConnectPageProps) {
   if (bothConnected) {
     return (
       <div className="min-h-screen flex items-center justify-center p-4">
-        <div className="glass-panel rounded-lg p-8 w-full max-w-md text-center">
-          <h1 className="text-4xl font-bold text-spotify-green mb-4">You're all set!</h1>
+        <div className="glass-panel rounded-lg p-6 sm:p-8 w-full max-w-md text-center">
+          <h1 className="text-3xl sm:text-4xl font-bold text-spotify-green mb-4">You're all set!</h1>
           <p className="text-white/80 font-light mb-6 leading-relaxed">
             Go for a run and Groovement will handle the rest. Your activities will be updated with song matches.
           </p>
@@ -51,7 +51,7 @@ export default async function ConnectPage({ searchParams }: ConnectPageProps) {
             href="https://www.strava.com"
             target="_blank"
             rel="noopener noreferrer"
-            className="inline-block bg-spotify-green text-black px-6 py-2 rounded-md hover:bg-opacity-90 font-bold transition"
+            className="inline-block bg-spotify-green text-black px-6 sm:px-8 py-3 sm:py-2 rounded-md hover:bg-opacity-90 font-bold transition"
           >
             Open Strava
           </a>
@@ -61,36 +61,36 @@ export default async function ConnectPage({ searchParams }: ConnectPageProps) {
   }
 
   return (
-    <div className="min-h-screen p-8">
+    <div className="min-h-screen p-4 sm:p-8">
       <div className="max-w-2xl mx-auto">
-        <div className="glass-panel rounded-lg p-8 mb-8">
-          <h1 className="text-3xl font-bold text-white mb-2">Welcome, {user.name}!</h1>
-          <p className="text-white/70 font-light">Connect your accounts to get started</p>
+        <div className="glass-panel rounded-lg p-6 sm:p-8 mb-6 sm:mb-8">
+          <h1 className="text-2xl sm:text-3xl font-bold text-white mb-2">Welcome, {user.name}!</h1>
+          <p className="text-sm sm:text-base text-white/70 font-light">Connect your accounts to get started</p>
         </div>
 
         {error === 'duplicate_strava' && (
-          <div className="glass-panel rounded-lg p-6 mb-8 border-l-4 border-red-500 bg-red-500/10">
-            <h2 className="text-lg font-bold text-red-400 mb-2">Strava Account Already Connected</h2>
-            <p className="text-white/80 font-light">
+          <div className="glass-panel rounded-lg p-4 sm:p-6 mb-6 sm:mb-8 border-l-4 border-red-500 bg-red-500/10">
+            <h2 className="text-base sm:text-lg font-bold text-red-400 mb-2">Strava Account Already Connected</h2>
+            <p className="text-sm sm:text-base text-white/80 font-light">
               This Strava account is already connected to a different Groovement account. If you think this is a mistake, please contact the developer.
             </p>
           </div>
         )}
 
         {error === 'duplicate_spotify' && (
-          <div className="glass-panel rounded-lg p-6 mb-8 border-l-4 border-red-500 bg-red-500/10">
-            <h2 className="text-lg font-bold text-red-400 mb-2">Spotify Account Already Connected</h2>
-            <p className="text-white/80 font-light">
+          <div className="glass-panel rounded-lg p-4 sm:p-6 mb-6 sm:mb-8 border-l-4 border-red-500 bg-red-500/10">
+            <h2 className="text-base sm:text-lg font-bold text-red-400 mb-2">Spotify Account Already Connected</h2>
+            <p className="text-sm sm:text-base text-white/80 font-light">
               This Spotify account is already connected to a different Groovement account. If you think this is a mistake, please contact the developer.
             </p>
           </div>
         )}
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6">
           {/* Strava Section */}
-          <div className="glass-panel rounded-lg p-6 border-l-4 border-orange-500">
+          <div className="glass-panel rounded-lg p-4 sm:p-6 border-l-4 border-orange-500">
             <div className="flex items-center justify-between mb-4">
-              <h2 className="text-2xl font-bold text-white">Strava</h2>
+              <h2 className="text-xl sm:text-2xl font-bold text-white">Strava</h2>
               {stravaConnected ? (
                 <span className="text-spotify-green font-bold text-sm">✓ Connected</span>
               ) : null}
@@ -105,7 +105,7 @@ export default async function ConnectPage({ searchParams }: ConnectPageProps) {
             {!stravaConnected && (
               <a
                 href={`/connect/strava?token=${encodeURIComponent(token)}`}
-                className="inline-block w-full bg-orange-600 text-white text-center py-2 rounded-md hover:bg-opacity-90 font-bold transition"
+                className="inline-block w-full bg-orange-600 text-white text-center py-3 sm:py-2 rounded-md hover:bg-opacity-90 font-bold transition"
               >
                 Connect Strava
               </a>
@@ -113,9 +113,9 @@ export default async function ConnectPage({ searchParams }: ConnectPageProps) {
           </div>
 
           {/* Spotify Section */}
-          <div className="glass-panel rounded-lg p-6 border-l-4 border-spotify-green">
+          <div className="glass-panel rounded-lg p-4 sm:p-6 border-l-4 border-spotify-green">
             <div className="flex items-center justify-between mb-4">
-              <h2 className="text-2xl font-bold text-white">Spotify</h2>
+              <h2 className="text-xl sm:text-2xl font-bold text-white">Spotify</h2>
               {spotifyConnected ? (
                 <span className="text-spotify-green font-bold text-sm">✓ Connected</span>
               ) : null}
@@ -130,7 +130,7 @@ export default async function ConnectPage({ searchParams }: ConnectPageProps) {
             {!spotifyConnected && (
               <a
                 href={`/connect/spotify?token=${encodeURIComponent(token)}`}
-                className="inline-block w-full bg-spotify-green text-black text-center py-2 rounded-md hover:bg-opacity-90 font-bold transition"
+                className="inline-block w-full bg-spotify-green text-black text-center py-3 sm:py-2 rounded-md hover:bg-opacity-90 font-bold transition"
               >
                 Connect Spotify
               </a>
@@ -145,10 +145,10 @@ export default async function ConnectPage({ searchParams }: ConnectPageProps) {
 function ErrorState({ message }: { message: string }) {
   return (
     <div className="min-h-screen flex items-center justify-center p-4">
-      <div className="glass-panel rounded-lg p-8 w-full max-w-md text-center">
-        <h1 className="text-2xl font-bold text-red-400 mb-4">Invalid Link</h1>
-        <p className="text-white/80 font-light mb-6">{message}</p>
-        <p className="text-sm text-white/60 font-light">
+      <div className="glass-panel rounded-lg p-6 sm:p-8 w-full max-w-md text-center">
+        <h1 className="text-xl sm:text-2xl font-bold text-red-400 mb-4">Invalid Link</h1>
+        <p className="text-sm sm:text-base text-white/80 font-light mb-6">{message}</p>
+        <p className="text-xs sm:text-sm text-white/60 font-light">
           Please check the email from Groovement for a valid approval link.
         </p>
       </div>
