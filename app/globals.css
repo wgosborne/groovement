@@ -32,7 +32,7 @@ html::before {
   background-size: cover;
   background-position: center bottom;
   background-repeat: no-repeat;
-  background-attachment: fixed;
+  background-attachment: scroll;
   filter: blur(1px);
   z-index: -2;
   pointer-events: none;
@@ -40,6 +40,7 @@ html::before {
 
 @media (min-width: 768px) {
   html::before {
+    background-attachment: fixed;
     filter: blur(8px);
   }
 }
