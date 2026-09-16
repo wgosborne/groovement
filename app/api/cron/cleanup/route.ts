@@ -10,8 +10,10 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Not configured' }, { status: 500 });
     }
 
-    const providedSecret = request.headers.get('x-cron-secret') ||
-                          new URL(request.url).searchParams.get('secret');
+    const authHeader = request.headers.get('authorization');
+    const providedSecret = authHeader?.startsWith('Bearer ')
+      ? authHeader.slice(7)
+      : new URL(request.url).searchParams.get('secret');
 
     if (providedSecret !== cronSecret) {
       console.warn('Cron request rejected: invalid secret');
