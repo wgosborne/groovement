@@ -114,6 +114,7 @@ model WebhookEvent {
   createdAt   DateTime      @default(now())
   updatedAt   DateTime      @updatedAt
   processedAt DateTime?
+  errorMessage String?
 
   @@unique([objectId, aspectType, eventTime])
 }

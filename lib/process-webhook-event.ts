@@ -1,6 +1,13 @@
 import { prisma } from '@/lib/prisma';
 import { matchSongsToActivity } from '@/lib/match-songs';
 
+class NonRetryableError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = 'NonRetryableError';
+  }
+}
+
 export async function processWebhookEvent(eventId: string): Promise<void> {
   try {
     // Fetch the WebhookEvent
@@ -25,15 +32,7 @@ export async function processWebhookEvent(eventId: string): Promise<void> {
     });
 
     if (!user) {
-      console.warn(`No User found for athleteId ${event.athleteId.toString()}`);
-      await prisma.webhookEvent.update({
-        where: { id: eventId },
-        data: {
-          status: 'failed',
-          attempts: event.attempts + 1,
-        },
-      });
-      return;
+      throw new NonRetryableError(`No User found for athleteId ${event.athleteId.toString()}`);
     }
 
     // Update the WebhookEvent with the resolved userId
@@ -82,21 +81,29 @@ export async function processWebhookEvent(eventId: string): Promise<void> {
     }
 
     const newAttempts = event.attempts + 1;
-    const isFinal = newAttempts >= 3;
+    const isFinal = error instanceof NonRetryableError || newAttempts >= 3;
+
+    // Extract error details: name + message, truncated to 500 chars
+    const errorName = error instanceof Error ? error.name : 'UnknownError';
+    const errorMsg = error instanceof Error ? error.message : String(error);
+    const fullErrorMsg = `[${errorName}] ${errorMsg}`;
+    const truncatedErrorMsg = fullErrorMsg.length > 500
+      ? fullErrorMsg.slice(0, 497) + '...'
+      : fullErrorMsg;
 
     await prisma.webhookEvent.update({
       where: { id: eventId },
       data: {
         status: isFinal ? 'failed' : 'pending',
         attempts: newAttempts,
+        ...(isFinal && { errorMessage: truncatedErrorMsg }),
       },
     }).catch(() => null);
 
-    const errorMsg = error instanceof Error ? error.message : String(error);
     console.error(`Failed to process WebhookEvent ${eventId}`, {
       attempt: newAttempts,
       final: isFinal,
-      error: errorMsg,
+      error: truncatedErrorMsg,
     });
   }
 }
