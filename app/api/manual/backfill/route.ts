@@ -68,6 +68,10 @@ export async function POST(request: NextRequest) {
       matchedCount: matchResult.matchedCount,
     });
 
+    const message = matchResult.matchedCount === 0
+      ? 'No songs matched for this activity — Strava description left unchanged.'
+      : `Successfully backfilled activity. Matched ${matchResult.matchedCount} splits and updated Strava description.`;
+
     return NextResponse.json(
       {
         success: true,
@@ -75,7 +79,7 @@ export async function POST(request: NextRequest) {
         activityId: activityId.toString(),
         matchedCount: matchResult.matchedCount,
         description: matchResult.description,
-        message: `Successfully backfilled activity. Matched ${matchResult.matchedCount} splits and updated Strava description.`,
+        message,
       },
       { status: 200 }
     );

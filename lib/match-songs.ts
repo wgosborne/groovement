@@ -101,6 +101,22 @@ export async function matchSongsToActivity(
     }
   }
 
+  // Skip Strava write if no songs matched (same as zero-splits case)
+  if (matchedCount === 0) {
+    console.info('No songs matched for activity — marking as matched without writing to Strava');
+
+    await prisma.activity.update({
+      where: { stravaId: stravaActivityId },
+      data: { songMatched: true },
+    });
+
+    return {
+      description: '',
+      matchedCount: 0,
+      success: true,
+    };
+  }
+
   // 5. Build description block with specific format
   const fastestSplit = matchedSongs[0];
   const secondaryMatches = matchedSongs.slice(1).filter((m) => m.track);
