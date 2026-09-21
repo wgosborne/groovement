@@ -24,6 +24,8 @@ export async function GET(req: NextRequest) {
     }
 
     const clientId = process.env.STRAVA_CLIENT_ID;
+    const redirectUri = process.env.STRAVA_REDIRECT_URI;
+
     if (!clientId) {
       console.error('STRAVA_CLIENT_ID is not set');
       return NextResponse.json(
@@ -32,9 +34,13 @@ export async function GET(req: NextRequest) {
       );
     }
 
-    const host = req.headers.get('host') || 'groovement.dev';
-    const protocol = process.env.NODE_ENV === 'production' ? 'https' : 'http';
-    const redirectUri = `${protocol}://${host}/connect/strava/callback`;
+    if (!redirectUri) {
+      console.error('STRAVA_REDIRECT_URI is not set');
+      return NextResponse.json(
+        { error: 'Server configuration error' },
+        { status: 500 }
+      );
+    }
 
     const stravaAuthUrl = new URL('https://www.strava.com/oauth/authorize');
     stravaAuthUrl.searchParams.set('client_id', clientId);
