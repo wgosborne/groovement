@@ -184,7 +184,7 @@ export async function fetchActivityWithTopSplits(
   });
 
   const rankedSplits = (activity.splits_metric || [])
-    .filter((split) => split.average_speed <= SPEED_CEILING_MS)
+    .filter((split) => split.average_speed <= SPEED_CEILING_MS && split.distance >= 950)
     .sort((a, b) => b.average_speed - a.average_speed)
     .slice(0, TOP_SPLITS_COUNT)
     .map((split, index) => {
