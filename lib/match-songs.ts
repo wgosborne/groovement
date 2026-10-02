@@ -63,6 +63,7 @@ export async function matchSongsToActivity(
 
   const matchedSongs: MatchedSplit[] = [];
   let matchedCount = 0;
+  const SONG_TIMEOUT_MS = 6 * 60 * 1000; // 6 minutes — if a song ended >6min before split end, don't match
 
   for (const split of activity.splits) {
     // Convert m/s to pace string
@@ -75,10 +76,16 @@ export async function matchSongsToActivity(
       durationMs: split.endDate.getTime() - split.startDate.getTime(),
     });
 
-    // Find plays within this split's window (use first chronologically if multiple)
-    const matchedPlay = plays.find(
-      (play) => play.playedAt >= split.startDate && play.playedAt <= split.endDate
-    );
+    // Find the most recent play where playedAt <= split's end time.
+    // This captures songs that started before the split but were still playing through it.
+    const candidatePlays = plays.filter((play) => play.playedAt <= split.endDate);
+    const mostRecentPlay = candidatePlays.sort((a, b) => b.playedAt.getTime() - a.playedAt.getTime())[0];
+
+    // Only match if the song didn't end long ago (cutoff: 6 min before split end)
+    const matchedPlay = mostRecentPlay &&
+      (split.endDate.getTime() - mostRecentPlay.playedAt.getTime()) <= SONG_TIMEOUT_MS
+      ? mostRecentPlay
+      : null;
 
     if (matchedPlay) {
       matchedSongs.push({
