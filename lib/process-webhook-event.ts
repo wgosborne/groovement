@@ -57,7 +57,13 @@ export async function processWebhookEvent(eventId: string): Promise<void> {
       },
     });
 
-    if (matchResult.matchedCount === 0) {
+    if (matchResult.skipped) {
+      // Intentional skip (e.g. user disconnected Spotify): completed, not an error, no retries
+      console.info(`WebhookEvent ${eventId} completed, skipped: ${matchResult.skipped}`, {
+        userId: user.id,
+        activityId: event.objectId,
+      });
+    } else if (matchResult.matchedCount === 0) {
       console.info(`WebhookEvent ${eventId} completed with no splits to match`, {
         userId: user.id,
         activityId: event.objectId,

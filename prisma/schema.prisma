@@ -36,6 +36,7 @@ enum MatchOutcome {
   matched
   no_plays_in_window
   no_splits
+  spotify_disconnected
   error
 }
 

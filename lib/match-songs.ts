@@ -1,3 +1,4 @@
+import type { MatchOutcome } from '@prisma/client';
 import { prisma } from '@/lib/prisma';
 import { fetchActivityWithTopSplits, getActivityDescription } from '@/lib/strava';
 import { fetchPlaysForActivity } from '@/lib/spotify';
@@ -6,6 +7,8 @@ export interface MatchResult {
   description: string;
   matchedCount: number;
   success: boolean;
+  // Set when matching was intentionally skipped (not a failure)
+  skipped?: 'spotify_disconnected';
 }
 
 function formatPace(speedMs: number): string {
@@ -27,29 +30,57 @@ export async function matchSongsToActivity(
     splitsConsidered: 0,
     playsInWindow: 0,
     matchedCount: 0,
-    outcome: 'error' as const,
+    outcome: 'error' as MatchOutcome,
     notes: '',
   };
 
   try {
-    // Get the Activity record to have its ID for logging
-    const activityRecord = await prisma.activity.findUnique({
+    // If the Activity row already exists, record its ID so a failed attempt is still logged
+    const existingActivity = await prisma.activity.findUnique({
       where: { stravaId: stravaActivityId },
     });
-
-    if (!activityRecord) {
-      throw new Error(`Activity record not found for stravaId ${stravaActivityId}`);
+    if (existingActivity) {
+      logData.activityId = existingActivity.id;
     }
 
-    logData.activityId = activityRecord.id;
-
-    // 1. Fetch activity with top splits
+    // 1. Fetch activity with top splits. This also creates the Activity row on first sight.
     const activity = await fetchActivityWithTopSplits(userId, stravaActivityId);
+    logData.activityId = activity.activityId;
 
     console.log(`Matching songs for activity ${stravaActivityId}`, {
       activityId: activity.activityId,
       splitsCount: activity.splits.length,
     });
+
+    // 1a. No Spotify connection: intentional skip, not a failure. Only reached when the
+    // user still has a Strava token, since fetchActivityWithTopSplits throws without one.
+    const spotifyToken = await prisma.oAuthToken.findUnique({
+      where: {
+        userId_service: {
+          userId,
+          service: 'spotify',
+        },
+      },
+    });
+
+    if (!spotifyToken) {
+      console.info('User has no Spotify connection — skipping song matching');
+
+      await prisma.activity.update({
+        where: { stravaId: stravaActivityId },
+        data: { songMatched: true },
+      });
+
+      logData.outcome = 'spotify_disconnected';
+      logData.notes = 'Spotify not connected; song matching skipped';
+
+      return {
+        description: '',
+        matchedCount: 0,
+        success: true,
+        skipped: 'spotify_disconnected',
+      };
+    }
 
     // 2. If zero splits, mark activity as matched and return early (not a failure)
     if (!activity.splits || activity.splits.length === 0) {

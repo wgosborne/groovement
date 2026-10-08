@@ -109,6 +109,26 @@ async function refreshAccessToken(
   return tokenData.access_token;
 }
 
+/**
+ * Revokes Groovement's grant on Strava's side. Strava invalidates all tokens the
+ * app holds for the athlete. Throws on failure; callers decide whether to proceed.
+ */
+export async function deauthorizeStravaApp(
+  userId: string,
+  encryptedRefreshToken: string
+): Promise<void> {
+  const accessToken = await refreshAccessToken(userId, encryptedRefreshToken);
+
+  const url = new URL('https://www.strava.com/oauth/deauthorize');
+  url.searchParams.set('access_token', accessToken);
+
+  const response = await fetch(url.toString(), { method: 'POST' });
+
+  if (!response.ok) {
+    throw new Error(`Strava deauthorize failed: ${response.status}`);
+  }
+}
+
 async function fetchStravaActivity(
   accessToken: string,
   activityId: bigint
@@ -117,7 +137,6 @@ async function fetchStravaActivity(
 
   console.log(`[DEBUG] Fetching Strava activity`);
   console.log(`[DEBUG] URL: ${url}`);
-  console.log(`[DEBUG] Token: ${accessToken}`);
 
   const response = await fetch(url, {
     headers: {
