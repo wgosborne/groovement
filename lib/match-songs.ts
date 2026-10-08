@@ -126,26 +126,18 @@ export async function matchSongsToActivity(
 
   // 5. Build description block with specific format
   const fastestSplit = matchedSongs[0];
-  const secondaryMatches = matchedSongs.slice(1).filter((m) => m.track);
 
   let descriptionBlock = '';
 
-  // Fastest split line
+  // Single line: SOTD with pace and song
   if (fastestSplit.track) {
-    descriptionBlock = `Fastest split (${fastestSplit.pace}/mi): "${fastestSplit.track}" by ${fastestSplit.artist}`;
+    descriptionBlock = `SOTD (${fastestSplit.pace}/mi): ${fastestSplit.track} by ${fastestSplit.artist}`;
   } else {
-    descriptionBlock = `Fastest split (${fastestSplit.pace}/mi): [no song playing]`;
+    descriptionBlock = `SOTD (${fastestSplit.pace}/mi): [no song playing]`;
   }
 
-  // SOTD/AOTD lines (only if we have secondary matches)
-  if (secondaryMatches.length > 0) {
-    const sotdList = secondaryMatches.map((m) => `"${m.track}"`).join(', ');
-    const aotdList = secondaryMatches.map((m) => m.artist).join(', ');
-    descriptionBlock += `\nSOTD: ${sotdList}\nAOTD: ${aotdList}`;
-  }
-
-  // Add footer attribution
-  descriptionBlock += '\n\nCalculated with https://groovement.dev';
+  // Add footer attribution (directly after, single newline)
+  descriptionBlock += `\nCalculated with https://groovement.dev`;
 
   console.log('Description block built:', {
     matchedCount,
