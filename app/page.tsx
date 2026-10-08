@@ -156,6 +156,13 @@ export default function Home() {
             >
               Get Started
             </a>
+
+            <p className="mt-6 text-sm text-white/50 font-light">
+              Already a member?{" "}
+              <a href="/login" className="underline hover:text-white/80">
+                Manage your account
+              </a>
+            </p>
           </div>
         </section>
 

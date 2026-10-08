@@ -75,3 +75,34 @@ Welcome to Groovement!
     throw error;
   }
 }
+
+export async function sendLoginEmail(
+  userEmail: string,
+  userName: string,
+  loginToken: string
+): Promise<void> {
+  const loginUrl = `https://groovement.dev/login/verify?token=${loginToken}`;
+  const subject = 'Your Groovement sign-in link';
+  const body = `
+Hi ${userName},
+
+Use the link below to sign in to Groovement:
+${loginUrl}
+
+This link can only be used once and will expire in 15 minutes.
+
+If you didn't request this, you can ignore this email.
+  `.trim();
+
+  try {
+    await resend.emails.send({
+      from: 'noreply@groovement.dev',
+      to: userEmail,
+      subject,
+      text: body,
+    });
+  } catch (error) {
+    console.error('Failed to send login email:', error);
+    throw error;
+  }
+}

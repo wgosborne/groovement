@@ -61,6 +61,29 @@ model User {
   webhookEvents    WebhookEvent[]
   matchAttemptLogs MatchAttemptLog[]
   connectToken     String?           @unique
+  loginTokens      LoginToken[]
+  sessions         Session[]
+}
+
+// Short-lived, single-use token emailed for signing in. Stores a SHA-256 hash, never the raw token.
+model LoginToken {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id])
+  tokenHash String   @unique
+  expiresAt DateTime
+  used      Boolean  @default(false)
+  createdAt DateTime @default(now())
+}
+
+// Long-lived session behind the groovement_session cookie. Stores a SHA-256 hash, never the raw token.
+model Session {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id])
+  tokenHash String   @unique
+  expiresAt DateTime
+  createdAt DateTime @default(now())
 }
 
 model OAuthToken {
