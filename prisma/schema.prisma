@@ -32,6 +32,13 @@ enum WebhookStatus {
   failed
 }
 
+enum MatchOutcome {
+  matched
+  no_plays_in_window
+  no_splits
+  error
+}
+
 model User {
   id     String     @id @default(cuid())
   name   String
@@ -48,11 +55,12 @@ model User {
   approvedAt  DateTime?
   createdAt   DateTime  @default(now())
 
-  oauthTokens   OAuthToken[]
-  activities    Activity[]
-  plays         Play[]
-  webhookEvents WebhookEvent[]
-  connectToken  String?        @unique
+  oauthTokens      OAuthToken[]
+  activities       Activity[]
+  plays            Play[]
+  webhookEvents    WebhookEvent[]
+  matchAttemptLogs MatchAttemptLog[]
+  connectToken     String?           @unique
 }
 
 model OAuthToken {
@@ -74,10 +82,11 @@ model Activity {
   name        String
   startDate   DateTime
   elapsedTime Int
-  songMatched Boolean  @default(false)
-  createdAt   DateTime @default(now())
+  songMatched      Boolean  @default(false)
+  createdAt        DateTime @default(now())
 
-  splits Split[]
+  splits           Split[]
+  matchAttemptLogs MatchAttemptLog[]
 }
 
 model Split {
@@ -117,4 +126,18 @@ model WebhookEvent {
   errorMessage String?
 
   @@unique([objectId, aspectType, eventTime])
+}
+
+model MatchAttemptLog {
+  id                String       @id @default(cuid())
+  userId            String
+  user              User         @relation(fields: [userId], references: [id])
+  activityId        String
+  activity          Activity     @relation(fields: [activityId], references: [id])
+  splitsConsidered  Int
+  playsInWindow     Int
+  matchedCount      Int
+  outcome           MatchOutcome
+  notes             String?
+  createdAt         DateTime     @default(now())
 }

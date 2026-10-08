@@ -21,245 +21,311 @@ export async function matchSongsToActivity(
   userId: string,
   stravaActivityId: bigint
 ): Promise<MatchResult> {
-  // 1. Fetch activity with top splits
-  const activity = await fetchActivityWithTopSplits(userId, stravaActivityId);
+  const logData = {
+    userId,
+    activityId: '',
+    splitsConsidered: 0,
+    playsInWindow: 0,
+    matchedCount: 0,
+    outcome: 'error' as const,
+    notes: '',
+  };
 
-  console.log(`Matching songs for activity ${stravaActivityId}`, {
-    activityId: activity.activityId,
-    splitsCount: activity.splits.length,
-  });
-
-  // 2. If zero splits, mark activity as matched and return early (not a failure)
-  if (!activity.splits || activity.splits.length === 0) {
-    console.info('No splits found for activity — marking as matched with nothing to do');
-
-    await prisma.activity.update({
-      where: { stravaId: stravaActivityId },
-      data: { songMatched: true },
-    });
-
-    return {
-      description: '',
-      matchedCount: 0,
-      success: true,
-    };
-  }
-
-  // 3. Calculate activity end date and fetch plays
-  const activityEndDate = new Date(
-    activity.startDate.getTime() + (activity.elapsedTime * 1000)
-  );
-
-  const plays = await fetchPlaysForActivity(userId, activity.startDate, activityEndDate);
-  console.log(`Found ${plays.length} plays during activity`);
-
-  // 4. Match plays to splits
-  interface MatchedSplit {
-    splitNumber: number;
-    pace: string;
-    track: string;
-    artist: string;
-  }
-
-  const matchedSongs: MatchedSplit[] = [];
-  let matchedCount = 0;
-  const SONG_TIMEOUT_MS = 6 * 60 * 1000; // 6 minutes — if a song ended >6min before split end, don't match
-
-  for (const split of activity.splits) {
-    // Convert m/s to pace string
-    const paceString = formatPace(split.averageSpeed);
-
-    // Debug: log split time window
-    console.debug(`Split ${split.splitNumber} time window:`, {
-      startDate: split.startDate.toISOString(),
-      endDate: split.endDate.toISOString(),
-      durationMs: split.endDate.getTime() - split.startDate.getTime(),
-    });
-
-    // Find the most recent play where playedAt <= split's end time.
-    // This captures songs that started before the split but were still playing through it.
-    const candidatePlays = plays.filter((play) => play.playedAt <= split.endDate);
-    const mostRecentPlay = candidatePlays.sort((a, b) => b.playedAt.getTime() - a.playedAt.getTime())[0];
-
-    // Only match if the song didn't end long ago (cutoff: 6 min before split end)
-    const matchedPlay = mostRecentPlay &&
-      (split.endDate.getTime() - mostRecentPlay.playedAt.getTime()) <= SONG_TIMEOUT_MS
-      ? mostRecentPlay
-      : null;
-
-    if (matchedPlay) {
-      matchedSongs.push({
-        splitNumber: split.splitNumber,
-        pace: paceString,
-        track: matchedPlay.trackName,
-        artist: matchedPlay.artist,
-      });
-      matchedCount++;
-      console.info(`Split ${split.splitNumber} matched: "${matchedPlay.trackName}" by ${matchedPlay.artist} @ ${paceString}/mi`);
-    } else {
-      // Track that this split has no match, but still keep the pace
-      matchedSongs.push({
-        splitNumber: split.splitNumber,
-        pace: paceString,
-        track: '',
-        artist: '',
-      });
-      console.info(`Split ${split.splitNumber} unmatched @ ${paceString}/mi`);
-    }
-  }
-
-  // Skip Strava write if no songs matched (same as zero-splits case)
-  if (matchedCount === 0) {
-    console.info('No songs matched for activity — marking as matched without writing to Strava');
-
-    await prisma.activity.update({
-      where: { stravaId: stravaActivityId },
-      data: { songMatched: true },
-    });
-
-    return {
-      description: '',
-      matchedCount: 0,
-      success: true,
-    };
-  }
-
-  // 5. Build description block with specific format
-  const fastestSplit = matchedSongs[0];
-
-  let descriptionBlock = '';
-
-  // Single line: SOTD with pace and song
-  if (fastestSplit.track) {
-    descriptionBlock = `SOTD (${fastestSplit.pace}/mi): ${fastestSplit.track} by ${fastestSplit.artist}`;
-  } else {
-    descriptionBlock = `SOTD (${fastestSplit.pace}/mi): [no song playing]`;
-  }
-
-  // Add footer attribution (directly after, single newline)
-  descriptionBlock += `\nCalculated with https://groovement.dev`;
-
-  console.log('Description block built:', {
-    matchedCount,
-    blockLength: descriptionBlock.length,
-  });
-
-  // 6. Fetch current activity description from Strava
-  let currentDescription: string | null = null;
   try {
-    currentDescription = await getActivityDescription(userId, stravaActivityId);
-  } catch (error) {
-    console.warn('Failed to fetch current activity description:', error);
-    // Continue anyway - we'll just use empty current description
-  }
-
-  // 7. Build final description
-  let updatedDescription: string;
-  if (currentDescription && currentDescription.trim()) {
-    updatedDescription = `${currentDescription}\n\n${descriptionBlock}`;
-  } else {
-    updatedDescription = descriptionBlock;
-  }
-
-  // 8. PUT description to Strava and update Activity record
-  try {
-    const oauthToken = await prisma.oAuthToken.findUnique({
-      where: {
-        userId_service: {
-          userId,
-          service: 'strava',
-        },
-      },
+    // Get the Activity record to have its ID for logging
+    const activityRecord = await prisma.activity.findUnique({
+      where: { stravaId: stravaActivityId },
     });
 
-    if (!oauthToken) {
-      throw new Error(`No Strava OAuth token found for user ${userId}`);
+    if (!activityRecord) {
+      throw new Error(`Activity record not found for stravaId ${stravaActivityId}`);
     }
 
-    // Refresh access token
-    const { decrypt } = await import('@/lib/encryption');
-    let refreshToken: string;
-    try {
-      refreshToken = decrypt(oauthToken.refreshToken);
-    } catch (error) {
-      throw new Error(
-        `Failed to decrypt refresh token for user ${userId}: ${error instanceof Error ? error.message : String(error)}`
-      );
-    }
+    logData.activityId = activityRecord.id;
 
-    const clientId = process.env.STRAVA_CLIENT_ID;
-    const clientSecret = process.env.STRAVA_CLIENT_SECRET;
+    // 1. Fetch activity with top splits
+    const activity = await fetchActivityWithTopSplits(userId, stravaActivityId);
 
-    if (!clientId || !clientSecret) {
-      throw new Error('STRAVA_CLIENT_ID or STRAVA_CLIENT_SECRET is not set');
-    }
-
-    const tokenResponse = await fetch('https://www.strava.com/api/v3/oauth/token', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        client_id: clientId,
-        client_secret: clientSecret,
-        grant_type: 'refresh_token',
-        refresh_token: refreshToken,
-      }),
+    console.log(`Matching songs for activity ${stravaActivityId}`, {
+      activityId: activity.activityId,
+      splitsCount: activity.splits.length,
     });
 
-    if (!tokenResponse.ok) {
-      const errorData = await tokenResponse.json().catch(() => ({ error: 'Unknown error' }));
-      const errorMsg = typeof errorData === 'object' && errorData !== null && 'error' in errorData
-        ? String((errorData as Record<string, unknown>).error)
-        : 'Unknown error';
-      throw new Error(`Strava token refresh failed: ${errorMsg}`);
+    // 2. If zero splits, mark activity as matched and return early (not a failure)
+    if (!activity.splits || activity.splits.length === 0) {
+      console.info('No splits found for activity — marking as matched with nothing to do');
+
+      await prisma.activity.update({
+        where: { stravaId: stravaActivityId },
+        data: { songMatched: true },
+      });
+
+      logData.splitsConsidered = 0;
+      logData.playsInWindow = 0;
+      logData.matchedCount = 0;
+      logData.outcome = 'no_splits';
+      logData.notes = 'No splits found for activity';
+
+      return {
+        description: '',
+        matchedCount: 0,
+        success: true,
+      };
     }
 
-    const tokenData = (await tokenResponse.json()) as { access_token: string };
+    logData.splitsConsidered = activity.splits.length;
 
-    if (!tokenData.access_token) {
-      throw new Error('No access token in Strava response');
-    }
-
-    const accessToken = tokenData.access_token;
-
-    // PUT description to Strava
-    const putResponse = await fetch(
-      `https://www.strava.com/api/v3/activities/${stravaActivityId}`,
-      {
-        method: 'PUT',
-        headers: {
-          Authorization: `Bearer ${accessToken}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ description: updatedDescription }),
-      }
+    // 3. Calculate activity end date and fetch plays
+    const activityEndDate = new Date(
+      activity.startDate.getTime() + (activity.elapsedTime * 1000)
     );
 
-    if (!putResponse.ok) {
-      const errorData = await putResponse.json().catch(() => ({ error: 'Unknown error' }));
-      const errorMsg = typeof errorData === 'object' && errorData !== null && 'error' in errorData
-        ? String((errorData as Record<string, unknown>).error)
-        : 'Unknown error';
-      throw new Error(
-        `Strava PUT failed: ${putResponse.status} ${errorMsg}`
-      );
+    const plays = await fetchPlaysForActivity(userId, activity.startDate, activityEndDate);
+    logData.playsInWindow = plays.length;
+    console.log(`Found ${plays.length} plays during activity`);
+
+    // 4. Match plays to splits
+    interface MatchedSplit {
+      splitNumber: number;
+      pace: string;
+      track: string;
+      artist: string;
     }
 
-    // Mark Activity as successfully matched
-    await prisma.activity.update({
-      where: { stravaId: stravaActivityId },
-      data: { songMatched: true },
+    const matchedSongs: MatchedSplit[] = [];
+    let matchedCount = 0;
+    const SONG_TIMEOUT_MS = 6 * 60 * 1000; // 6 minutes — if a song ended >6min before split end, don't match
+
+    for (const split of activity.splits) {
+      // Convert m/s to pace string
+      const paceString = formatPace(split.averageSpeed);
+
+      // Debug: log split time window
+      console.debug(`Split ${split.splitNumber} time window:`, {
+        startDate: split.startDate.toISOString(),
+        endDate: split.endDate.toISOString(),
+        durationMs: split.endDate.getTime() - split.startDate.getTime(),
+      });
+
+      // Find the most recent play where playedAt <= split's end time.
+      // This captures songs that started before the split but were still playing through it.
+      const candidatePlays = plays.filter((play) => play.playedAt <= split.endDate);
+      const mostRecentPlay = candidatePlays.sort((a, b) => b.playedAt.getTime() - a.playedAt.getTime())[0];
+
+      // Only match if the song didn't end long ago (cutoff: 6 min before split end)
+      const matchedPlay = mostRecentPlay &&
+        (split.endDate.getTime() - mostRecentPlay.playedAt.getTime()) <= SONG_TIMEOUT_MS
+        ? mostRecentPlay
+        : null;
+
+      if (matchedPlay) {
+        matchedSongs.push({
+          splitNumber: split.splitNumber,
+          pace: paceString,
+          track: matchedPlay.trackName,
+          artist: matchedPlay.artist,
+        });
+        matchedCount++;
+        console.info(`Split ${split.splitNumber} matched: "${matchedPlay.trackName}" by ${matchedPlay.artist} @ ${paceString}/mi`);
+      } else {
+        // Track that this split has no match, but still keep the pace
+        matchedSongs.push({
+          splitNumber: split.splitNumber,
+          pace: paceString,
+          track: '',
+          artist: '',
+        });
+        console.info(`Split ${split.splitNumber} unmatched @ ${paceString}/mi`);
+      }
+    }
+
+    logData.matchedCount = matchedCount;
+
+    // Skip Strava write if no songs matched (same as zero-splits case)
+    if (matchedCount === 0) {
+      console.info('No songs matched for activity — marking as matched without writing to Strava');
+
+      await prisma.activity.update({
+        where: { stravaId: stravaActivityId },
+        data: { songMatched: true },
+      });
+
+      logData.outcome = 'no_plays_in_window';
+      logData.notes = `No songs matched (${plays.length} play(s) in window, ${activity.splits.length} split(s))`;
+
+      return {
+        description: '',
+        matchedCount: 0,
+        success: true,
+      };
+    }
+
+    // 5. Build description block with specific format
+    const fastestSplit = matchedSongs[0];
+
+    let descriptionBlock = '';
+
+    // Single line: SOTD with pace and song
+    if (fastestSplit.track) {
+      descriptionBlock = `SOTD (${fastestSplit.pace}/mi): ${fastestSplit.track} by ${fastestSplit.artist}`;
+    } else {
+      descriptionBlock = `SOTD (${fastestSplit.pace}/mi): [no song playing]`;
+    }
+
+    // Add footer attribution (directly after, single newline)
+    descriptionBlock += `\nCalculated with https://groovement.dev`;
+
+    console.log('Description block built:', {
+      matchedCount,
+      blockLength: descriptionBlock.length,
     });
 
-    console.info(`Successfully updated Strava activity ${stravaActivityId} with matched songs`);
+    // 6. Fetch current activity description from Strava
+    let currentDescription: string | null = null;
+    try {
+      currentDescription = await getActivityDescription(userId, stravaActivityId);
+    } catch (error) {
+      console.warn('Failed to fetch current activity description:', error);
+      // Continue anyway - we'll just use empty current description
+    }
 
-    return {
-      description: updatedDescription,
-      matchedCount,
-      success: true,
-    };
+    // 7. Build final description
+    let updatedDescription: string;
+    if (currentDescription && currentDescription.trim()) {
+      updatedDescription = `${currentDescription}\n\n${descriptionBlock}`;
+    } else {
+      updatedDescription = descriptionBlock;
+    }
+
+    // 8. PUT description to Strava and update Activity record
+    try {
+      const oauthToken = await prisma.oAuthToken.findUnique({
+        where: {
+          userId_service: {
+            userId,
+            service: 'strava',
+          },
+        },
+      });
+
+      if (!oauthToken) {
+        throw new Error(`No Strava OAuth token found for user ${userId}`);
+      }
+
+      // Refresh access token
+      const { decrypt } = await import('@/lib/encryption');
+      let refreshToken: string;
+      try {
+        refreshToken = decrypt(oauthToken.refreshToken);
+      } catch (error) {
+        throw new Error(
+          `Failed to decrypt refresh token for user ${userId}: ${error instanceof Error ? error.message : String(error)}`
+        );
+      }
+
+      const clientId = process.env.STRAVA_CLIENT_ID;
+      const clientSecret = process.env.STRAVA_CLIENT_SECRET;
+
+      if (!clientId || !clientSecret) {
+        throw new Error('STRAVA_CLIENT_ID or STRAVA_CLIENT_SECRET is not set');
+      }
+
+      const tokenResponse = await fetch('https://www.strava.com/api/v3/oauth/token', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          client_id: clientId,
+          client_secret: clientSecret,
+          grant_type: 'refresh_token',
+          refresh_token: refreshToken,
+        }),
+      });
+
+      if (!tokenResponse.ok) {
+        const errorData = await tokenResponse.json().catch(() => ({ error: 'Unknown error' }));
+        const errorMsg = typeof errorData === 'object' && errorData !== null && 'error' in errorData
+          ? String((errorData as Record<string, unknown>).error)
+          : 'Unknown error';
+        throw new Error(`Strava token refresh failed: ${errorMsg}`);
+      }
+
+      const tokenData = (await tokenResponse.json()) as { access_token: string };
+
+      if (!tokenData.access_token) {
+        throw new Error('No access token in Strava response');
+      }
+
+      const accessToken = tokenData.access_token;
+
+      // PUT description to Strava
+      const putResponse = await fetch(
+        `https://www.strava.com/api/v3/activities/${stravaActivityId}`,
+        {
+          method: 'PUT',
+          headers: {
+            Authorization: `Bearer ${accessToken}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ description: updatedDescription }),
+        }
+      );
+
+      if (!putResponse.ok) {
+        const errorData = await putResponse.json().catch(() => ({ error: 'Unknown error' }));
+        const errorMsg = typeof errorData === 'object' && errorData !== null && 'error' in errorData
+          ? String((errorData as Record<string, unknown>).error)
+          : 'Unknown error';
+        throw new Error(
+          `Strava PUT failed: ${putResponse.status} ${errorMsg}`
+        );
+      }
+
+      // Mark Activity as successfully matched
+      await prisma.activity.update({
+        where: { stravaId: stravaActivityId },
+        data: { songMatched: true },
+      });
+
+      console.info(`Successfully updated Strava activity ${stravaActivityId} with matched songs`);
+
+      logData.outcome = 'matched';
+      logData.notes = `Matched ${matchedCount} split(s): fastest was "${fastestSplit.track}" by ${fastestSplit.artist} @ ${fastestSplit.pace}/mi`;
+
+      return {
+        description: updatedDescription,
+        matchedCount,
+        success: true,
+      };
+    } catch (error) {
+      const errorMsg = error instanceof Error ? error.message : String(error);
+      console.error(`Failed to update Strava activity ${stravaActivityId}:`, errorMsg);
+      logData.outcome = 'error';
+      logData.notes = errorMsg;
+      throw error;
+    }
   } catch (error) {
     const errorMsg = error instanceof Error ? error.message : String(error);
-    console.error(`Failed to update Strava activity ${stravaActivityId}:`, errorMsg);
+    console.error(`Failed to process activity ${stravaActivityId}:`, errorMsg);
+    if (logData.outcome === 'error' && !logData.notes) {
+      logData.notes = errorMsg;
+    }
     throw error;
+  } finally {
+    // Always log the attempt, regardless of success or failure
+    if (logData.activityId) {
+      await prisma.matchAttemptLog.create({
+        data: {
+          userId: logData.userId,
+          activityId: logData.activityId,
+          splitsConsidered: logData.splitsConsidered,
+          playsInWindow: logData.playsInWindow,
+          matchedCount: logData.matchedCount,
+          outcome: logData.outcome,
+          notes: logData.notes || null,
+        },
+      }).catch(logError => {
+        console.error('Failed to log match attempt:', logError);
+      });
+    }
   }
 }
